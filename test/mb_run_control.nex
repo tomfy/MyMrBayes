@@ -1,0 +1,23 @@
+begin mrbayes;
+set autoclose=yes nowarn=yes;
+set seed=12345;
+set swapseed=13345;
+execute ./famX.nex;
+set precision=6;
+lset rates=invgamma;
+prset aamodelpr=fixed(wag);
+mcmcp minpartfreq=0.02;
+mcmcp allchains=yes;
+mcmcp burninfrac=0.2;
+mcmcp nchains=3;
+mcmcp nswaps=1;
+mcmcp nruns=1;
+mcmcp temp=(1.0, 1.1, 1.2);
+mcmcp samplefreq=20;
+mcmcp printfreq=100;
+mcmcp checkpoint=yes checkfreq=200;
+mcmc ngen=1000;
+sump;
+sumt;
+end;
+
