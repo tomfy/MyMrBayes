@@ -366,8 +366,8 @@ int                 inDataBlock, inForeignBlock, isInterleaved, isFirstMatrixRea
                     isNegative, numDivisions, charOrdering, foundExp, foundColon, isFirstNode, nextAvailableNode,
                     pairId, firstPair, inTaxaBlock, inCharactersBlock, foundEqual;
 char                gapId, missingId, matchId, tempSetName[100], **tempNames;
-CmdType             *commandPtr; /*Points to the commands array entery which corresponds to currently processed command*/
-ParmInfoPtr         paramPtr;    /*Points to paramTable table array entery which corresponds to currently processed parameter of current command*/
+CmdType             *commandPtr; /*Points to the commands array entry which corresponds to currently processed command*/
+ParmInfoPtr         paramPtr;    /*Points to paramTable table array entry which corresponds to currently processed parameter of current command*/
 TreeNode            *pPtr, *qPtr;
 
 enum ConstraintType     consrtainType; /* Used only in processing of constraine command to indicate what is the type of constrain */
