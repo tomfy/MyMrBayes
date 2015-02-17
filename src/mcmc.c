@@ -19477,10 +19477,23 @@ int PrintStates (int curGen, int coldId)
         }
 
     /* Set up the header to the file. */
-    if (curGen == 0)
+    if ((curGen == 0)
+	&& (coldId % chainParams.numChains) == 0) // only print header once; do it for gen 0 cold chain.
         {
-        SafeSprintf (&tempStr, &tempStrSize, "[ID: %s]\n", stamp);
+        SafeSprintf (&tempStr, &tempStrSize, "[ID: %s]  ", stamp);
         if (AddToPrintString (tempStr) == ERROR) goto errorExit;
+	SafeSprintf (&tempStr, &tempStrSize, "T=(%5.3f", 1.0/InverseTemperature(0));
+ if (AddToPrintString (tempStr) == ERROR) goto errorExit;
+   int it; 
+   for(it=1; it<chainParams.numChains; it++){
+     MrBFlt theT;
+     theT = 1.0/InverseTemperature(it);
+     SafeSprintf (&tempStr, &tempStrSize, ", %5.3f", theT);
+ if (AddToPrintString (tempStr) == ERROR) goto errorExit;
+
+   }
+      SafeSprintf (&tempStr, &tempStrSize, ")\n");
+      if (AddToPrintString (tempStr) == ERROR) goto errorExit;  
         SafeSprintf (&tempStr, &tempStrSize, "Gen");
         if (AddToPrintString (tempStr) == ERROR) goto errorExit;
         SafeSprintf (&tempStr, &tempStrSize, "\tLnL");
@@ -19791,13 +19804,15 @@ int PrintStates (int curGen, int coldId)
         }
         
     /* now print parameter values */
+//    SafeSprintf (&tempStr, &tempStrSize, "%d  ", chainId[coldId]);
+    if (AddToPrintString (tempStr) == ERROR) goto errorExit;
     SafeSprintf (&tempStr, &tempStrSize, "%d", curGen);
     if (AddToPrintString (tempStr) == ERROR) goto errorExit;
     SafeSprintf (&tempStr, &tempStrSize, "\t%s", MbPrintNum(curLnL[coldId]));
     if (AddToPrintString (tempStr) == ERROR) goto errorExit;
     SafeSprintf (&tempStr, &tempStrSize, "\t%s", MbPrintNum(curLnPr[coldId]));
     if (AddToPrintString (tempStr) == ERROR) goto errorExit;
-
+    
     /* print tree lengths or heights for all trees */
     for (i=0; i<numParams; i++)
         {
@@ -20155,7 +20170,7 @@ int PrintStates (int curGen, int coldId)
 
 /*----------------------------------------------------------------------
 |
-|   PrintStatesToFiles: Print trees and model parameters to files. We
+|   PrintStatesToFiles-: Print trees and model parameters to files. We
 |      only come into this function if it is the first cycle of the chain
 |      or if we hit a cycle number evenly divisible by the sample frequency,
 |      or this is the last cycle of the chain.
@@ -20164,6 +20179,7 @@ int PrintStates (int curGen, int coldId)
 int PrintStatesToFiles (int curGen)
 {
     int             i, j, chn, coldId, runId;
+    //   int temperatureId;
     MrBFlt          clockRate;
     Tree            *tree=NULL;
     Param           *param;
@@ -20173,15 +20189,25 @@ int PrintStatesToFiles (int curGen)
 #   endif
 
 #   if !defined (MPI_ENABLED)
-
+    int inverseChainId[100];
+    for(chn=0; chn<numLocalChains; chn++){
+      inverseChainId[chainId[chn]] = chn;
+      //   printf("%8i %8i %8i \n", chn, chainId[chn], inverseChainId[chainId[chn]]);
+    }
     /* print parameter values and trees (single-processor version) */
-    for (chn=0; chn<numLocalChains; chn++)
-        {
-        if ((chainId[chn] % chainParams.numChains) == 0)
-            {
-            coldId = chn;
-            runId = chainId[chn] / chainParams.numChains;
 
+    for (chn=0; chn<numLocalChains; chn++) // here chn%numChains == 0 <-> cold chain.
+        {
+	  //	  printf("chain id, T: %8i  %8i  %8.4g \n", chn, inverseChainId[chn], 1.0/InverseTemperature(chn));
+	  //    if ((chainId[chn] % chainParams.numChains) == 0) // This selects just cold chain to output.
+	  // chaindId[chn] == 0 -> cold chain
+            {
+	      //   coldId = chn;
+	      coldId = inverseChainId[chn];
+	      //   temperatureId = chainId[chn]; 
+	    //   runId = chainId[chn] / chainParams.numChains;
+	    runId = chn / chainParams.numChains;
+	    
             /* print parameter values */
             if (PrintStates (curGen, coldId) == ERROR)
                 return (ERROR);
@@ -20237,7 +20263,7 @@ int PrintStatesToFiles (int curGen)
                     }
                 }
             }
-        }
+        } // loop over nchains*nruns chains
 #   else
     /* print parameter values and trees (parallel version) */
     
@@ -21137,7 +21163,8 @@ int PrintTree (int curGen, Param *treeParam, int chain, int showBrlens, MrBFlt c
         }
     
     /* print the translate block information and the top of the file */
-    if (curGen == 0)
+    if ( (curGen == 0)
+	 && ((chainId[chain] % chainParams.numChains) == 0) ) // only print the header once, although may be printing info for hot chains also.
         {
         /* print #NEXUS and translation block information */
         SafeSprintf (&tempStr, &tempStrSize, "#NEXUS\n");
