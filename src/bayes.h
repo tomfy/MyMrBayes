@@ -1123,6 +1123,7 @@ typedef struct chain
     int         append;                /* order taxa before printing tree to file?      */
     int         autotune;              /* autotune tuning parameters of proposals ?     */
     int         tuneFreq;              /* autotuning frequency                          */
+      int       numChainsOut;          /* e.g. 2 -> output coldest 2 chains (in .p, .t) */
     } Chain;
 
 typedef struct modelinfo
