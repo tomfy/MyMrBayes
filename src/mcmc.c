@@ -92,6 +92,7 @@ typedef void (*sighandler_t) (int);
 #define MAXLOGTUNINGPARAM           100000      /* limit to ensure convergence for autotuning */
 #define SAMPLE_ALL_SS                           /* if defined makes ss sample every generation instead of every sample frequency */
 #define MIN_TEMPERATURE             (0.00001)
+#define OUTPUT_HOT                  (FALSE)
 /* debugging compiler statements */
 #undef  DEBUG_SETUPTERMSTATE
 #undef  DEBUG_RUNCHAIN
@@ -8460,6 +8461,7 @@ int DoMcmcParm (char *parmName, char *tkn)
         /* set Nchains (numChains) ************************************************************/
         else if (!strcmp(parmName, "Nchains"))
             {
+
             if (expecting == Expecting(EQUALSIGN))
                 expecting = Expecting(NUMBER);
             else if (expecting == Expecting(NUMBER))
@@ -8481,6 +8483,10 @@ int DoMcmcParm (char *parmName, char *tkn)
                     return (ERROR);
                 chainParams.numChains = tempI;
                 MrBayesPrint ("%s   Setting number of chains to %d\n", spacer, chainParams.numChains);
+	if(chainParams.numChainsOut > chainParams.numChains){ 
+		  chainParams.numChainsOut = chainParams.numChains; 
+		 MrBayesPrint ("%s   Setting number of chains to be output to %d\n", spacer, chainParams.numChainsOut); 
+		}
                 expecting = Expecting(PARAMETER) | Expecting(SEMICOLON);
                 }
             else
@@ -8489,6 +8495,35 @@ int DoMcmcParm (char *parmName, char *tkn)
                 return (ERROR);
                 }
             }
+   /* set Nchainsout the number of chains (at different temperatures) to output. (numChains)  *********************************/
+        else if (!strcmp(parmName, "Nchainsout"))
+            {
+            if (expecting == Expecting(EQUALSIGN))
+                expecting = Expecting(NUMBER);
+            else if (expecting == Expecting(NUMBER))
+                {
+                sscanf (tkn, "%d", &tempI);
+                if (tempI < 1)
+                    {
+		      MrBayesPrint ("%s   Requested number of chains to output is %d. Leaving set to %d\n", spacer, tempI, chainParams.numChainsOut);
+		      tempI = chainParams.numChainsOut;
+                    }
+                if (tempI > chainParams.numChains)
+		  {
+		    MrBayesPrint ("%s   Requested numChainsout is %d.  numChains is %d. Setting numChainsout to numChains. \n", spacer, tempI, chainParams.numChains);
+		    tempI = chainParams.numChains;
+                    } 
+	        chainParams.numChainsOut = tempI;
+                MrBayesPrint ("%s   Setting number of chains to be output to %d\n", spacer, chainParams.numChainsOut);
+                expecting = Expecting(PARAMETER) | Expecting(SEMICOLON);
+                }
+            else
+                {
+                free(tempStr);
+                return (ERROR);
+                }
+	    }
+
         /* set Temp (chainTemp) ***************************************************************/
         else if (!strcmp(parmName, "Temp"))
             {
@@ -19473,27 +19508,27 @@ int PrintStates (int curGen, int coldId)
             goto errorExit;
             }
         for (i=0; i<numChar; i++)
-            printedChar[i] = NO;
+	  printedChar[i] = NO;
         }
 
     /* Set up the header to the file. */
     if ((curGen == 0)
 	&& (coldId % chainParams.numChains) == 0) // only print header once; do it for gen 0 cold chain.
-        {
+      {
         SafeSprintf (&tempStr, &tempStrSize, "[ID: %s]  ", stamp);
         if (AddToPrintString (tempStr) == ERROR) goto errorExit;
 	SafeSprintf (&tempStr, &tempStrSize, "T=(%5.3f", 1.0/InverseTemperature(0));
- if (AddToPrintString (tempStr) == ERROR) goto errorExit;
-   int it; 
-   for(it=1; it<chainParams.numChains; it++){
-     MrBFlt theT;
-     theT = 1.0/InverseTemperature(it);
-     SafeSprintf (&tempStr, &tempStrSize, ", %5.3f", theT);
- if (AddToPrintString (tempStr) == ERROR) goto errorExit;
+	if (AddToPrintString (tempStr) == ERROR) goto errorExit;
+	int it; 
+	for(it=1; it<chainParams.numChains; it++){
+	  MrBFlt theT;
+	  theT = 1.0/InverseTemperature(it);
+	  SafeSprintf (&tempStr, &tempStrSize, ", %5.3f", theT);
+	  if (AddToPrintString (tempStr) == ERROR) goto errorExit;
 
-   }
-      SafeSprintf (&tempStr, &tempStrSize, ")\n");
-      if (AddToPrintString (tempStr) == ERROR) goto errorExit;  
+	}
+	SafeSprintf (&tempStr, &tempStrSize, ")\n");
+	if (AddToPrintString (tempStr) == ERROR) goto errorExit;  
         SafeSprintf (&tempStr, &tempStrSize, "Gen");
         if (AddToPrintString (tempStr) == ERROR) goto errorExit;
         SafeSprintf (&tempStr, &tempStrSize, "\tLnL");
@@ -19801,11 +19836,11 @@ int PrintStates (int curGen, int coldId)
             
         SafeSprintf (&tempStr, &tempStrSize, "\n");
         if (AddToPrintString (tempStr) == ERROR) goto errorExit;
-        }
+      }
         
     /* now print parameter values */
 //    SafeSprintf (&tempStr, &tempStrSize, "%d  ", chainId[coldId]);
-    if (AddToPrintString (tempStr) == ERROR) goto errorExit;
+//    if (AddToPrintString (tempStr) == ERROR) goto errorExit;
     SafeSprintf (&tempStr, &tempStrSize, "%d", curGen);
     if (AddToPrintString (tempStr) == ERROR) goto errorExit;
     SafeSprintf (&tempStr, &tempStrSize, "\t%s", MbPrintNum(curLnL[coldId]));
@@ -20192,15 +20227,12 @@ int PrintStatesToFiles (int curGen)
     int inverseChainId[100];
     for(chn=0; chn<numLocalChains; chn++){
       inverseChainId[chainId[chn]] = chn;
-      //   printf("%8i %8i %8i \n", chn, chainId[chn], inverseChainId[chainId[chn]]);
     }
     /* print parameter values and trees (single-processor version) */
 
-    for (chn=0; chn<numLocalChains; chn++) // here chn%numChains == 0 <-> cold chain.
+    for (chn=0; chn<numLocalChains; chn++) // here chn%numChains == 0 -> cold chain.
         {
-	  //	  printf("chain id, T: %8i  %8i  %8.4g \n", chn, inverseChainId[chn], 1.0/InverseTemperature(chn));
-	  //    if ((chainId[chn] % chainParams.numChains) == 0) // This selects just cold chain to output.
-	  // chaindId[chn] == 0 -> cold chain
+	    if( (chn % chainParams.numChains) < chainParams.numChainsOut)
             {
 	      //   coldId = chn;
 	      coldId = inverseChainId[chn];
