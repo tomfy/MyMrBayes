@@ -948,6 +948,7 @@ int ReinitializeMrBayes (void)
     chainParams.checkPoint = YES;                    /* should we checkpoint the run?                 */
     chainParams.checkFreq = 2000;                    /* check-pointing frequency                      */
     chainParams.diagnStat = AVGSTDDEV;               /* mcmc diagnostic to use                        */
+    chainParams.numChainsOut = 1;                    /* e.g. 2-> .p, .t files get coldest 2 chains' info */
 
     /* sumt parameters */
     strcpy(sumtParams.sumtFileName, "temp");         /* input name for sumt command                   */
