@@ -49,7 +49,7 @@ const char* const svnRevisionCommandC = "$Rev: 982 $";   /* Revision keyword whi
 
 #define NUMCOMMANDS                     61  /* Note: NUMCOMMANDS gives the total number  */
                                             /*       of commands in the program          */
-#define NUMPARAMS                       276
+#define NUMPARAMS                       277
 #define PARAM(i, s, f, l)               p->string = s;    \
                                         p->fp = f;        \
                                         p->valueList = l; \
@@ -320,8 +320,8 @@ CmdType     commands[] =
             { 26,          "Matrix", YES,          DoMatrix,  1,                                                                                             {11},112381728,                 "Defines matrix of characters in data block", IN_FILE, SHOW },
             { 27,            "Mcmc",  NO,            DoMcmc, 46,  {17,18,19,20,21,22,23,24,25,26,27,84,98,112,113,114,115,116,132,142,143,144,148,149,150,151,152,
                                                                                      153,154,155,156,157,158,159,160,166,169,190,191,198,199,200,202,213,214,215},       36,                   "Starts Markov chain Monte Carlo analysis",  IN_CMD, SHOW },
-            { 28,           "Mcmcp",  NO,           DoMcmcp, 46,  {17,18,19,20,21,22,23,24,25,26,27,84,98,112,113,114,115,116,132,142,143,144,148,149,150,151,152,
-                                                                                     153,154,155,156,157,158,159,160,166,169,190,191,198,199,200,202,213,214,215},        4,     "Sets parameters of a chain (without starting analysis)",  IN_CMD, SHOW },
+            { 28,           "Mcmcp",  NO,           DoMcmcp, 47,  {17,18,19,20,21,22,23,24,25,26,27,84,98,112,113,114,115,116,132,142,143,144,148,149,150,151,152,
+								   153,154,155,156,157,158,159,160,166,169,190,191,198,199,200,202,213,214,215,276},        4,     "Sets parameters of a chain (without starting analysis)",  IN_CMD, SHOW },
             { 29,        "Outgroup", YES,        DoOutgroup,  1,                                                                                             {78},    49152,                                     "Changes outgroup taxon",  IN_CMD, SHOW },
             { 30,           "Pairs", YES,           DoPairs,  1,                                                                                             {92},    32768,        "Defines nucleotide pairs (doublets) for stem models",  IN_CMD, SHOW },
             { 31,       "Partition",  NO,       DoPartition,  1,                                                                                             {16},        4,                              "Assigns a character partition",  IN_CMD, SHOW },
@@ -11762,9 +11762,9 @@ int GetUserHelp (char *helpTkn)
         MrBayesPrint ("   implement a variant of MCMC called \"Metropolis-coupled Markov chain Monte    \n");
         MrBayesPrint ("   Carlo\", or MCMCMC for short. Basically, \"Nchains\" are run, with            \n");
         MrBayesPrint ("   Nchains - 1 of them heated. The chains are labelled 1, 2, ..., Nchains.       \n");
-        MrBayesPrint ("   The heat that is applied to the i-th chain is B = 1 / (1 + temp X i). B       \n");
-        MrBayesPrint ("   is the power to which the posterior probability is raised. When B = 0, all    \n");
-        MrBayesPrint ("   trees have equal probability and the chain freely visits trees. B = 1 is      \n");
+        MrBayesPrint ("   The temperature of the i-th chain is T_i = (1 + temp*i). 1/T is the power     \n");
+        MrBayesPrint ("   to which the posterior probability is raised. When T is infinite, all         \n");
+        MrBayesPrint ("   trees have equal probability and the chain freely visits trees. T = 1 is      \n");
         MrBayesPrint ("   the \"cold\" chain (or the distribution of interest). MCMCMC can mix          \n");
         MrBayesPrint ("   better than ordinary MCMC; after all of the chains have gone through          \n");
         MrBayesPrint ("   one cycle, two chains are chosen at random and an attempt is made to          \n");
@@ -11801,6 +11801,12 @@ int GetUserHelp (char *helpTkn)
         MrBayesPrint ("                   rates for swaps between different chains. Before changing the \n");
         MrBayesPrint ("                   default setting, however, note that the acceptance rates of   \n");
         MrBayesPrint ("                   swaps tend to fluctuate during the burn-in phase of the run.  \n");
+	MrBayesPrint ("                   It is also possible to set the temperatures to whatever you   \n");
+        MrBayesPrint ("                   want, like this: temp=(1.0,1.1,1.3,1.8). The first nchains    \n");
+        MrBayesPrint ("                   temperatures are used; any extra ones are ignored. If nchains \n");
+        MrBayesPrint ("                   is > the number of temperatures you supply, the others chains \n");
+	MrBayesPrint ("                   get T=1. \n");
+
         MrBayesPrint ("   Reweight     -- Here, you specify three numbers, that respectively represent  \n");
         MrBayesPrint ("                   the percentage of characters to decrease in weight, the       \n");
         MrBayesPrint ("                   percentage of characters to increase in weight, and the       \n");
@@ -13883,6 +13889,7 @@ void PrintSettings (char *command)
         MrBayesPrint ("   Ngen            <number>              %d                                      \n", chainParams.numGen);
         MrBayesPrint ("   Nruns           <number>              %d                                      \n", chainParams.numRuns);
         MrBayesPrint ("   Nchains         <number>              %d                                      \n", chainParams.numChains);
+	MrBayesPrint ("   Nchainsout      <number>              %d                                      \n", chainParams.numChainsOut);
         MrBayesPrint ("   Temp            <number>              %lf                                     \n", chainParams.chainTemp);
         MrBayesPrint ("   Reweight        <number>,<number>     %1.2lf v %1.2lf ^                       \n", chainParams.weightScheme[0], chainParams.weightScheme[1]);
         MrBayesPrint ("   Swapfreq        <number>              %d                                      \n", chainParams.swapFreq);
@@ -14539,10 +14546,11 @@ void SetUpParms (void)
     PARAM (273, "Mixedvar",       DoLinkParm,        "\0");
     PARAM (274, "Mixedbrchrates", DoLinkParm,        "\0");
     PARAM (275, "Beagleresource", DoSetParm,         "\0");
-
+    PARAM (276, "Nchainsout",     DoMcmcParm,        "\0");
+    //    printf("after 276\n");
     /* NOTE: If a change is made to the parameter table, make certain you change
-            NUMPARAMS (now 276; one more than last index) at the top of this file. */
-    /* CmdType commands[] */
+            NUMPARAMS (now 277; one more than last index) at the top of this file. */
+    /*  CmdType commands[60];  */
 }
 
 
