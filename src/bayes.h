@@ -35,7 +35,7 @@
 #endif
 
 /* uncomment the following line when releasing, also modify the VERSION_NUMBER below */
-#define RELEASE
+// #define RELEASE
 #ifdef RELEASE
 #define VERSION_NUMBER  "3.2.4"
 #else
