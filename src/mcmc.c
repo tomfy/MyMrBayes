@@ -92,7 +92,7 @@ typedef void (*sighandler_t) (int);
 #define MAXLOGTUNINGPARAM           100000      /* limit to ensure convergence for autotuning */
 #define SAMPLE_ALL_SS                           /* if defined makes ss sample every generation instead of every sample frequency */
 #define MIN_TEMPERATURE             (0.00001)
-#define OUTPUT_HOT                  (FALSE)
+
 /* debugging compiler statements */
 #undef  DEBUG_SETUPTERMSTATE
 #undef  DEBUG_RUNCHAIN
@@ -19449,7 +19449,7 @@ int PrintSiteRates_Std (TreeNode *p, int division, int chain)
 }
 
 
-int PrintStates (int curGen, int coldId)
+int PrintStates (int curGen, int chnId)
 {
     int             d, i, j, k, k1, compressedCharPosition, *printedChar=NULL, origAlignmentChars[3];
     char            *partString=NULL, stateString[4];
@@ -19513,7 +19513,7 @@ int PrintStates (int curGen, int coldId)
 
     /* Set up the header to the file. */
     if ((curGen == 0)
-	&& (coldId % chainParams.numChains) == 0) // only print header once; do it for gen 0 cold chain.
+	&& (chnId % chainParams.numChains) == 0) // only print header once; do it for gen 0 cold chain.
       {
         SafeSprintf (&tempStr, &tempStrSize, "[ID: %s]  ", stamp);
         if (AddToPrintString (tempStr) == ERROR) goto errorExit;
@@ -19543,7 +19543,7 @@ int PrintStates (int curGen, int coldId)
 
             if (p->paramType == P_BRLENS)
                 {
-                tree = GetTree (p, coldId, state[coldId]);
+                tree = GetTree (p, chnId, state[chnId]);
                 if (tree->isRooted == YES)
                     {
                     if (FillRelPartsString(p, &partString) == YES)
@@ -19658,10 +19658,10 @@ int PrintStates (int curGen, int coldId)
             for (d=0; d<numCurrentDivisions; d++)
                 {
                 m = &modelSettings[d];
-                tree = GetTree(m->brlens, coldId, state[coldId]);
+                tree = GetTree(m->brlens, chnId, state[chnId]);
                 if (m->printPosSel == YES)
                     {
-                    if (m->PosSelProbs (tree->root->left, d, coldId) == ERROR)
+                    if (m->PosSelProbs (tree->root->left, d, chnId) == ERROR)
                         goto errorExit;
                     }
                 }
@@ -19695,10 +19695,10 @@ int PrintStates (int curGen, int coldId)
             for (d=0; d<numCurrentDivisions; d++)
                 {
                 m = &modelSettings[d];
-                tree = GetTree(m->brlens, coldId, state[coldId]);
+                tree = GetTree(m->brlens, chnId, state[chnId]);
                 if (m->printSiteOmegas == YES)
                     {
-                    if (m->SiteOmegas (tree->root->left, d, coldId) == ERROR)
+                    if (m->SiteOmegas (tree->root->left, d, chnId) == ERROR)
                         goto errorExit;
                     }
                 }
@@ -19839,13 +19839,13 @@ int PrintStates (int curGen, int coldId)
       }
         
     /* now print parameter values */
-//    SafeSprintf (&tempStr, &tempStrSize, "%d  ", chainId[coldId]);
+//    SafeSprintf (&tempStr, &tempStrSize, "%d  ", chainId[chnId]);
 //    if (AddToPrintString (tempStr) == ERROR) goto errorExit;
     SafeSprintf (&tempStr, &tempStrSize, "%d", curGen);
     if (AddToPrintString (tempStr) == ERROR) goto errorExit;
-    SafeSprintf (&tempStr, &tempStrSize, "\t%s", MbPrintNum(curLnL[coldId]));
+    SafeSprintf (&tempStr, &tempStrSize, "\t%s", MbPrintNum(curLnL[chnId]));
     if (AddToPrintString (tempStr) == ERROR) goto errorExit;
-    SafeSprintf (&tempStr, &tempStrSize, "\t%s", MbPrintNum(curLnPr[coldId]));
+    SafeSprintf (&tempStr, &tempStrSize, "\t%s", MbPrintNum(curLnPr[chnId]));
     if (AddToPrintString (tempStr) == ERROR) goto errorExit;
     
     /* print tree lengths or heights for all trees */
@@ -19855,17 +19855,17 @@ int PrintStates (int curGen, int coldId)
 
         if (p->paramType == P_BRLENS)
             {
-            tree = GetTree (p, coldId, state[coldId]);
+            tree = GetTree (p, chnId, state[chnId]);
             if (tree->isClock == NO)
                 {
-                SafeSprintf (&tempStr, &tempStrSize, "\t%s", MbPrintNum(TreeLength(p, coldId)));
+                SafeSprintf (&tempStr, &tempStrSize, "\t%s", MbPrintNum(TreeLength(p, chnId)));
                 if (AddToPrintString (tempStr) == ERROR) goto errorExit;
                 }
             else
                 {
                 SafeSprintf (&tempStr, &tempStrSize, "\t%s", MbPrintNum(tree->root->left->nodeDepth));
                 if (AddToPrintString (tempStr) == ERROR) goto errorExit;
-                SafeSprintf (&tempStr, &tempStrSize, "\t%s", MbPrintNum(TreeLength(p, coldId)));
+                SafeSprintf (&tempStr, &tempStrSize, "\t%s", MbPrintNum(TreeLength(p, chnId)));
                 if (AddToPrintString (tempStr) == ERROR) goto errorExit;
                 }
             }
@@ -19881,12 +19881,12 @@ int PrintStates (int curGen, int coldId)
                 {
                 if (p->subParams[j]->paramType == P_CPPEVENTS)
                     {
-                    SafeSprintf (&tempStr, &tempStrSize, "\t%d", NumCppEvents(p->subParams[j],coldId));
+                    SafeSprintf (&tempStr, &tempStrSize, "\t%d", NumCppEvents(p->subParams[j],chnId));
                     if (AddToPrintString (tempStr) == ERROR) goto errorExit;
                     }
                 else if (p->subParams[j]->paramType == P_MIXEDBRCHRATES)
                     {
-                    SafeSprintf (&tempStr, &tempStrSize, "\t%d", *GetParamIntVals(p->subParams[j],coldId,state[coldId]));
+                    SafeSprintf (&tempStr, &tempStrSize, "\t%d", *GetParamIntVals(p->subParams[j],chnId,state[chnId]));
                     if (AddToPrintString (tempStr) == ERROR) goto errorExit;
                     }
                 }
@@ -19902,8 +19902,8 @@ int PrintStates (int curGen, int coldId)
         mp = &modelParams[p->relParts[0]];
         m  = &modelSettings[p->relParts[0]];
         
-        st  = GetParamVals (p, coldId, state[coldId]);
-        sst = GetParamSubVals (p, coldId, state[coldId]);
+        st  = GetParamVals (p, chnId, state[chnId]);
+        sst = GetParamSubVals (p, chnId, state[chnId]);
 
         if (p->paramId == SYMPI_EXP_MS || p->paramId == SYMPI_UNI_MS || p->paramId == SYMPI_FIX_MS)
             {
@@ -19913,7 +19913,7 @@ int PrintStates (int curGen, int coldId)
                 SafeSprintf (&tempStr, &tempStrSize, "\t%s", MbPrintNum(st[0]));
                 if (AddToPrintString (tempStr) == ERROR) goto errorExit;
                 }
-            sst = GetParamStdStateFreqs (p, coldId, state[coldId]);
+            sst = GetParamStdStateFreqs (p, chnId, state[chnId]);
             if (p->hasBinaryStd == YES)
                 sst += 2 * m->numBetaCats;
             for (j=0; j<p->nSympi; j++)
@@ -19964,9 +19964,9 @@ int PrintStates (int curGen, int coldId)
             if (p->paramId == REVMAT_MIX)
                 {
                 /* add model index and k for nst=mixed */
-                SafeSprintf (&tempStr, &tempStrSize, "\t%d", FromGrowthFxnToIndex(GetParamIntVals(p, coldId, state[coldId])));
+                SafeSprintf (&tempStr, &tempStrSize, "\t%d", FromGrowthFxnToIndex(GetParamIntVals(p, chnId, state[chnId])));
                 if (AddToPrintString (tempStr) == ERROR) goto errorExit;
-                SafeSprintf (&tempStr, &tempStrSize, "\t%d", GetKFromGrowthFxn(GetParamIntVals(p, coldId, state[coldId])));
+                SafeSprintf (&tempStr, &tempStrSize, "\t%d", GetKFromGrowthFxn(GetParamIntVals(p, chnId, state[chnId])));
                 if (AddToPrintString (tempStr) == ERROR) goto errorExit;
                 }
             }
@@ -20054,9 +20054,9 @@ int PrintStates (int curGen, int coldId)
             if (m->printSiteRates == YES)
                 {
                 mp = &modelParams[d];
-                tree = GetTree (m->brlens, coldId, state[coldId]);
+                tree = GetTree (m->brlens, chnId, state[chnId]);
                 node = tree->root->left;
-                m->PrintSiteRates (node, d, coldId);
+                m->PrintSiteRates (node, d, chnId);
                 }
             }
         }
@@ -20070,10 +20070,10 @@ int PrintStates (int curGen, int coldId)
         for (d=0; d<numCurrentDivisions; d++)
             {
             m = &modelSettings[d];
-            tree = GetTree(m->brlens, coldId, state[coldId]);
+            tree = GetTree(m->brlens, chnId, state[chnId]);
             if (m->printPosSel == YES)
                 {
-                if (m->PosSelProbs (tree->root->left, d, coldId) == ERROR)
+                if (m->PosSelProbs (tree->root->left, d, chnId) == ERROR)
                     {
                     goto errorExit;
                     }
@@ -20110,10 +20110,10 @@ int PrintStates (int curGen, int coldId)
         for (d=0; d<numCurrentDivisions; d++)
             {
             m = &modelSettings[d];
-            tree = GetTree(m->brlens, coldId, state[coldId]);
+            tree = GetTree(m->brlens, chnId, state[chnId]);
             if (m->printSiteOmegas == YES)
                 {
-                if (m->SiteOmegas (tree->root->left, d, coldId) == ERROR)
+                if (m->SiteOmegas (tree->root->left, d, chnId) == ERROR)
                     {
                     goto errorExit;
                     }
@@ -20162,11 +20162,11 @@ int PrintStates (int curGen, int coldId)
             if (m->printAncStates == YES)
                 {
                 mp = &modelParams[d];
-                tree = GetTree (m->brlens, coldId, state[coldId]);
+                tree = GetTree (m->brlens, chnId, state[chnId]);
                 for (i=j=tree->nIntNodes - 1; i>=0; i--)
                     {
                     node = tree->intDownPass[i];
-                    m->CondLikeUp (node, d, coldId);
+                    m->CondLikeUp (node, d, chnId);
                     }
                 for (k=0; k<numDefinedConstraints; k++)
                     {
@@ -20176,7 +20176,7 @@ int PrintStates (int curGen, int coldId)
                         {
                         node = tree->intDownPass[i];
                         if (node->isLocked == YES && k == node->lockID)
-                            m->PrintAncStates (node, d, coldId);
+                            m->PrintAncStates (node, d, chnId);
                         }
                     }
                 }
@@ -20214,7 +20214,7 @@ int PrintStates (int curGen, int coldId)
 int PrintStatesToFiles (int curGen)
 {
     int             i, j, chn, coldId, runId;
-    //   int temperatureId;
+    int             temperatureId, chnId;
     MrBFlt          clockRate;
     Tree            *tree=NULL;
     Param           *param;
@@ -20225,23 +20225,20 @@ int PrintStatesToFiles (int curGen)
 
 #   if !defined (MPI_ENABLED)
     int inverseChainId[100];
-    for(chn=0; chn<numLocalChains; chn++){
-      inverseChainId[chainId[chn]] = chn;
+    for(temperatureId=0; temperatureId<numLocalChains; temperatureId++){
+      inverseChainId[chainId[temperatureId]] = temperatureId;
     }
-    /* print parameter values and trees (single-processor version) */
 
-    for (chn=0; chn<numLocalChains; chn++) // here chn%numChains == 0 -> cold chain.
+    /* print parameter values and trees (single-processor version) */
+    for (temperatureId=0; temperatureId<numLocalChains; temperatureId++) // here temperatureId%numChains == 0 -> cold chain.
         {
-	    if( (chn % chainParams.numChains) < chainParams.numChainsOut)
+	    if( (temperatureId % chainParams.numChains) < chainParams.numChainsOut)
             {
-	      //   coldId = chn;
-	      coldId = inverseChainId[chn];
-	      //   temperatureId = chainId[chn]; 
-	    //   runId = chainId[chn] / chainParams.numChains;
-	    runId = chn / chainParams.numChains;
+	    chnId = inverseChainId[temperatureId];
+	    runId = temperatureId / chainParams.numChains;
 	    
             /* print parameter values */
-            if (PrintStates (curGen, coldId) == ERROR)
+            if (PrintStates (curGen, chnId) == ERROR)
                 return (ERROR);
             fprintf (fpParm[runId], "%s", printString);
             fflush (fpParm[runId]);
@@ -20251,23 +20248,23 @@ int PrintStatesToFiles (int curGen)
             for (i=0; i<numPrintTreeParams; i++)
                 {
                 param = printTreeParam[i];
-                tree = GetTree(param, coldId, state[coldId]);
+                tree = GetTree(param, chnId, state[chnId]);
                 if (param->paramType == P_TOPOLOGY)
                     {
                     if (tree->isClock == YES)
-                        clockRate = *GetParamVals(modelSettings[tree->relParts[0]].clockRate, coldId, state[coldId]);
+                        clockRate = *GetParamVals(modelSettings[tree->relParts[0]].clockRate, chnId, state[chnId]);
                     else
                         clockRate = 0.0;
-                    if (PrintTree (curGen, param, coldId, NO, clockRate) == ERROR)
+                    if (PrintTree (curGen, param, chnId, NO, clockRate) == ERROR)
                         return (ERROR);
                     }
                 else
                     {
                     if (tree->isClock == YES)
-                        clockRate = *GetParamVals(modelSettings[tree->relParts[0]].clockRate, coldId, state[coldId]);
+                        clockRate = *GetParamVals(modelSettings[tree->relParts[0]].clockRate, chnId, state[chnId]);
                     else
                         clockRate = 0.0;
-                    if (PrintTree (curGen, param, coldId, YES, clockRate) == ERROR)
+                    if (PrintTree (curGen, param, chnId, YES, clockRate) == ERROR)
                         return (ERROR);
                     }
 
