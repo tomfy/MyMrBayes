@@ -4,7 +4,7 @@
  *  (c) 2002-2013
  *
  *  John P. Huelsenbeck
- *  Dept. Integrative Biology
+ *  Dept. Integrative BiologyTemp 
  *  University of California, Berkeley
  *  Berkeley, CA 94720-3140
  *  johnh@berkeley.edu
@@ -318,8 +318,8 @@ CmdType     commands[] =
             { 24,            "Lset",  NO,            DoLset, 16,                                             {28,29,30,31,32,33,34,40,51,52,53,90,91,131,188,189},        4,                "Sets the parameters of the likelihood model",  IN_CMD, SHOW },
             { 25,          "Manual",  NO,          DoManual,  1,                                                                                            {126},       36,                  "Prints a command reference to a text file",  IN_CMD, SHOW },
             { 26,          "Matrix", YES,          DoMatrix,  1,                                                                                             {11},112381728,                 "Defines matrix of characters in data block", IN_FILE, SHOW },
-            { 27,            "Mcmc",  NO,            DoMcmc, 46,  {17,18,19,20,21,22,23,24,25,26,27,84,98,112,113,114,115,116,132,142,143,144,148,149,150,151,152,
-                                                                                     153,154,155,156,157,158,159,160,166,169,190,191,198,199,200,202,213,214,215},       36,                   "Starts Markov chain Monte Carlo analysis",  IN_CMD, SHOW },
+            { 27,            "Mcmc",  NO,            DoMcmc, 47,  {17,18,19,20,21,22,23,24,25,26,27,84,98,112,113,114,115,116,132,142,143,144,148,149,150,151,152,
+								   153,154,155,156,157,158,159,160,166,169,190,191,198,199,200,202,213,214,215,276},       36,                   "Starts Markov chain Monte Carlo analysis",  IN_CMD, SHOW },
             { 28,           "Mcmcp",  NO,           DoMcmcp, 47,  {17,18,19,20,21,22,23,24,25,26,27,84,98,112,113,114,115,116,132,142,143,144,148,149,150,151,152,
 								   153,154,155,156,157,158,159,160,166,169,190,191,198,199,200,202,213,214,215,276},        4,     "Sets parameters of a chain (without starting analysis)",  IN_CMD, SHOW },
             { 29,        "Outgroup", YES,        DoOutgroup,  1,                                                                                             {78},    49152,                                     "Changes outgroup taxon",  IN_CMD, SHOW },
@@ -11792,20 +11792,21 @@ int GetUserHelp (char *helpTkn)
         MrBayesPrint ("                   variant. The default is 4: 1 cold chain and 3 heated chains.  \n");
         MrBayesPrint ("                   If Nchains is set to 1, MrBayes will use regular MCMC sam-    \n");
         MrBayesPrint ("                   pling, without heating.                                       \n");
-        MrBayesPrint ("   Temp         -- The temperature-spacing parameter for heating the chains.     \n");
-	MrBayesPrint ("                   E.g. with nchains=3 and temp=0.15 the temperatures of the     \n");
-	MrBayesPrint ("                   3 chains would be 1, 1.15, and 1.3. The higher the            \n");
+        MrBayesPrint ("   Temp         -- Use to set the temperatures of the chains in one of two ways: \n");
+	MrBayesPrint ("                   1) For example, temp=0.15, sets the temperature-spacing       \n");
+	MrBayesPrint ("                   parameter to 0.15; with nchains=3 the temperatures            \n");
+	MrBayesPrint ("                   of the 3 chains would be 1, 1.15, and 1.3.                    \n");
+ 	MrBayesPrint ("                   2) You can also explicitly specify the temperatures you want. \n");
+ 	MrBayesPrint ("                   For example temp=(1.0,1.1,1.4). (The first nchains            \n");
+	MrBayesPrint ("                   temperatures are used; any extra ones are ignored. If nchains \n");
+        MrBayesPrint ("                   is greater than the number of temperatures you supply,        \n");
+        MrBayesPrint ("                   the others chains will be set to T=1.) The higher the         \n");
         MrBayesPrint ("                   temperature, the more likely the heated chains are to         \n");
         MrBayesPrint ("                   move between isolated peaks in the posterior distribution.    \n");
         MrBayesPrint ("                   However, excessive heating may lead to very low acceptance    \n");
         MrBayesPrint ("                   rates for swaps between different chains. Before changing the \n");
         MrBayesPrint ("                   default setting, however, note that the acceptance rates of   \n");
         MrBayesPrint ("                   swaps tend to fluctuate during the burn-in phase of the run.  \n");
-	MrBayesPrint ("                   It is also possible to set the temperatures to whatever you   \n");
-        MrBayesPrint ("                   want, like this: temp=(1.0,1.1,1.3,1.8). The first nchains    \n");
-        MrBayesPrint ("                   temperatures are used; any extra ones are ignored. If nchains \n");
-        MrBayesPrint ("                   is > the number of temperatures you supply, the others chains \n");
-	MrBayesPrint ("                   get T=1. \n");
 
         MrBayesPrint ("   Reweight     -- Here, you specify three numbers, that respectively represent  \n");
         MrBayesPrint ("                   the percentage of characters to decrease in weight, the       \n");
