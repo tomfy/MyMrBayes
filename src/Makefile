@@ -1,7 +1,8 @@
 srcdir    = .
 RM        = rm
 CC        = gcc
-CFLAGS    = -O3 -DNDEBUG -DUSECONFIG_H
+#CFLAGS   = -DNDEBUG -DUSECONFIG_H -std=c99
+CFLAGS    = -O3 -DNDEBUG -DUSECONFIG_H -std=c99
 #CFLAGS     = -DUSECONFIG_H
 LDFLAGS   =  -lreadline -lm
 INSTALL   = /usr/bin/install -c

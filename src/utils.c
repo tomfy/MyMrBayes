@@ -1751,15 +1751,18 @@ void StripComments (char *s)
     *t = '\0';
 }
 
-
 FILE *TestOpenTextFileR (char *name)
 {
     char        fileName[100];
 
     strcpy(fileName, workingDir);
     strncat(fileName, name, 99 - strlen(fileName));
-
-    return fopen (fileName, "r");   
+    printf("trying to open file: %s\n", fileName);
+    FILE* return_value =  fopen (fileName, "r");
+    /* if(return_value == NULL){ */
+    /*   perror("fopen failed: "); */
+    /* } */
+    return return_value;   // return file pointer, or NULL if error.
 }
 
 

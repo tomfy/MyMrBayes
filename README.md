@@ -19,3 +19,7 @@ not hot chains. And added some help info about this.
 Feb 16 2015: Now allowing outputting of parameters, trees sampled, for hot chains as well as cold.
 All are going into one file. So, e.g. if nchains=3, the first line with a given gen, is for the cold chain,
 next line is for the next hotter chain, and the line after that is for the hottest chain.
+
+May 25 2017: Info on both trees (topologies only) and parameters output to .tp file. This file has all runs 
+and multiple temperatures (the coolest nchainsout temperatures), in one file. Columns are 
+generation, ln(posterior prob.), tree length, alpha, pinvar, run number, T number, walker number, ln importance-sampling weight, topology.

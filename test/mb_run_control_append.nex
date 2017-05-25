@@ -17,7 +17,7 @@ mcmcp temp=(1.0, 1.2, 1.5);
 mcmcp samplefreq=50;
 mcmcp printfreq=100;
 mcmcp checkpoint=yes checkfreq=200;
-mcmc ngen=2000;
+mcmc append=yes ngen=4000;
 sump;
 sumt;
 end;

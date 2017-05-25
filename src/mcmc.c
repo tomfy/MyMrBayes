@@ -483,6 +483,7 @@ MrBFlt          *maxLnL0 = NULL;             /* maximum likelihood              
 FILE            *fpMcmc = NULL;              /* pointer to .mcmc file                        */
 FILE            **fpParm = NULL;             /* pointer to .p file(s)                        */
 FILE            ***fpTree = NULL;            /* pointer to .t file(s)                        */
+FILE            *fpTreeParm = NULL;          /* pointer to .tp file */
 FILE            *fpSS = NULL;                /* pointer to .ss file                          */
 static int      requestAbortRun;             /* flag for aborting mcmc analysis              */
 int             *topologyPrintIndex;         /* print file index of each topology            */
@@ -810,7 +811,7 @@ int AttemptSwap (int swapA, int swapB, RandLong *seed)
 {
     int             d, tempX, reweightingChars, isSwapSuccessful, chI, chJ, runId;
     MrBFlt          inverseTemperatureA, inverseTemperatureB, lnLikeA, lnLikeB, lnPriorA, lnPriorB, lnR, r,
-                    lnLikeStateAonDataB=0.0, lnLikeStateBonDataA=0.0, lnL;
+                     lnLikeStateAonDataB=0.0, lnLikeStateBonDataA=0.0, lnL;
     ModelInfo       *m;
     Tree            *tree;
 #   if defined (MPI_ENABLED)
@@ -8495,7 +8496,7 @@ int DoMcmcParm (char *parmName, char *tkn)
                 return (ERROR);
                 }
             }
-   /* set Nchainsout the number of chains (at different temperatures) to output. (numChains)  *********************************/
+   /* set Nchainsout (output data on the coolest Nchainsout 'chains' (including cold chain).) (numChainsOut)  ***************/
         else if (!strcmp(parmName, "Nchainsout"))
             {
             if (expecting == Expecting(EQUALSIGN))
@@ -17448,7 +17449,6 @@ int SiteOmegas_SSE (TreeNode *p, int division, int chain)
             ps[c2] = siteOmega;
             }
         }
-    
     free (catLike);
     free (mCatLike);
     
@@ -17488,7 +17488,7 @@ int PreparePrintFiles (void)
     fpSS = NULL;
     fpParm = NULL;
     fpTree = NULL;  
-    fpParm = (FILE **) SafeCalloc (n, sizeof (FILE *)); 
+    fpParm = (FILE **) SafeCalloc (n, sizeof (FILE *));
     if (fpParm == NULL)
         {
         MrBayesPrint ("%s   Could not allocate fpParm in PreparePrintFiles\n", spacer);
@@ -17574,7 +17574,7 @@ int PreparePrintFiles (void)
                 return ERROR;
                 }
             }
-        }
+        } // end if(noWarn == NO)
 
     /* Prepare the .mcmc file */
     if (chainParams.mcmcDiagn == YES)
@@ -17621,6 +17621,14 @@ int PreparePrintFiles (void)
                 }
             }
         }
+    /* Prepare the .tp file */
+    sprintf(fileName, "%s.tp", localFileName);
+    if ((fpTreeParm = OpenNewMBPrintFile (fileName)) == NULL)
+            {
+            noWarn = oldNoWarn;
+            autoOverwrite = oldAutoOverwrite;
+            return (ERROR);
+            }
 
     /* Prepare the .ss file */
     if (chainParams.isSS == YES)
@@ -19461,12 +19469,11 @@ int PrintStates (int curGen, int chnId)
     ModelParams     *mp;
     char            *tempStr;
     int             tempStrSize;
-
+  
     /* allocate the print string */
     printStringSize = tempStrSize = TEMPSTRSIZE;
     printString = (char *)SafeMalloc((size_t) (printStringSize * sizeof(char)));
     tempStr = (char *) SafeMalloc((size_t) (tempStrSize * sizeof(char)));
-
     if (!printString)
         {
         MrBayesPrint ("%s   Problem allocating printString (%d)\n", spacer, printStringSize * sizeof(char));
@@ -19525,7 +19532,6 @@ int PrintStates (int curGen, int chnId)
 	  theT = 1.0/InverseTemperature(it);
 	  SafeSprintf (&tempStr, &tempStrSize, ", %5.3f", theT);
 	  if (AddToPrintString (tempStr) == ERROR) goto errorExit;
-
 	}
 	SafeSprintf (&tempStr, &tempStrSize, ")\n");
 	if (AddToPrintString (tempStr) == ERROR) goto errorExit;  
@@ -19535,7 +19541,6 @@ int PrintStates (int curGen, int chnId)
         if (AddToPrintString (tempStr) == ERROR) goto errorExit;
         SafeSprintf (&tempStr, &tempStrSize, "\tLnPr");
         if (AddToPrintString (tempStr) == ERROR) goto errorExit;
-
         /* print tree lengths or heights for all trees */
         for (i=0; i<numParams; i++)
             {
@@ -19598,7 +19603,7 @@ int PrintStates (int curGen, int chnId)
             SafeSprintf (&tempStr, &tempStrSize, "\t%s", p->paramHeader);
             if (AddToPrintString (tempStr) == ERROR) goto errorExit;
             }
-            
+
         /* print substitution model parameters header */
         if (inferSiteRates == YES)
             {
@@ -19833,21 +19838,19 @@ int PrintStates (int curGen, int chnId)
                     }
                 }
             }
-            
         SafeSprintf (&tempStr, &tempStrSize, "\n");
         if (AddToPrintString (tempStr) == ERROR) goto errorExit;
       }
-        
     /* now print parameter values */
-//    SafeSprintf (&tempStr, &tempStrSize, "%d  ", chainId[chnId]);
-//    if (AddToPrintString (tempStr) == ERROR) goto errorExit;
     SafeSprintf (&tempStr, &tempStrSize, "%d", curGen);
     if (AddToPrintString (tempStr) == ERROR) goto errorExit;
     SafeSprintf (&tempStr, &tempStrSize, "\t%s", MbPrintNum(curLnL[chnId]));
     if (AddToPrintString (tempStr) == ERROR) goto errorExit;
     SafeSprintf (&tempStr, &tempStrSize, "\t%s", MbPrintNum(curLnPr[chnId]));
     if (AddToPrintString (tempStr) == ERROR) goto errorExit;
-    
+    // print parameter values for .tp file
+    fprintf(fpTreeParm, "%d", curGen);
+    fprintf(fpTreeParm, "\t%s", MbPrintNum(curLnL[chnId] + curLnPr[chnId]));
     /* print tree lengths or heights for all trees */
     for (i=0; i<numParams; i++)
         {
@@ -19858,15 +19861,19 @@ int PrintStates (int curGen, int chnId)
             tree = GetTree (p, chnId, state[chnId]);
             if (tree->isClock == NO)
                 {
-                SafeSprintf (&tempStr, &tempStrSize, "\t%s", MbPrintNum(TreeLength(p, chnId)));
+                  double tl = TreeLength(p, chnId);
+                  SafeSprintf (&tempStr, &tempStrSize, "\t%s", MbPrintNum(tl));
                 if (AddToPrintString (tempStr) == ERROR) goto errorExit;
+                fprintf(fpTreeParm, "\t%s", MbPrintNum(tl));
                 }
             else
                 {
                 SafeSprintf (&tempStr, &tempStrSize, "\t%s", MbPrintNum(tree->root->left->nodeDepth));
                 if (AddToPrintString (tempStr) == ERROR) goto errorExit;
-                SafeSprintf (&tempStr, &tempStrSize, "\t%s", MbPrintNum(TreeLength(p, chnId)));
+                double tl = TreeLength(p, chnId);
+                SafeSprintf (&tempStr, &tempStrSize, "\t%s", MbPrintNum(tl));
                 if (AddToPrintString (tempStr) == ERROR) goto errorExit;
+                fprintf(fpTreeParm, "\t%s", MbPrintNum(tl));
                 }
             }
         }
@@ -20015,6 +20022,7 @@ int PrintStates (int curGen, int chnId)
                 {
                 SafeSprintf (&tempStr, &tempStrSize, "\t%s", MbPrintNum(st[j]));
                 if (AddToPrintString (tempStr) == ERROR) goto errorExit;
+                fprintf(fpTreeParm, "\t%s", MbPrintNum(st[j]));
                 }
             }
 
@@ -20183,8 +20191,8 @@ int PrintStates (int curGen, int chnId)
             }
         }
 
-    SafeSprintf (&tempStr, &tempStrSize, "\n");
-    if (AddToPrintString (tempStr) == ERROR) goto errorExit;
+     SafeSprintf (&tempStr, &tempStrSize, "\n"); 
+     if (AddToPrintString (tempStr) == ERROR) goto errorExit;
     
     free (tempStr);
     SafeFree ((void **)&partString);
@@ -20213,7 +20221,7 @@ int PrintStates (int curGen, int chnId)
 ------------------------------------------------------------------------*/
 int PrintStatesToFiles (int curGen)
 {
-    int             i, j, chn, coldId, runId;
+    int             i, j, coldId, runId;
     int             temperatureId, chnId;
     MrBFlt          clockRate;
     Tree            *tree=NULL;
@@ -20221,29 +20229,36 @@ int PrintStatesToFiles (int curGen)
 #   if defined (MPI_ENABLED)
     int             id, x, doesThisProcHaveId, procWithChain, ierror, tag, nErrors, sumErrors;
     MPI_Status      status;
+
+   
 #   endif
 
 #   if !defined (MPI_ENABLED)
-    int inverseChainId[100];
-    for(temperatureId=0; temperatureId<numLocalChains; temperatureId++){
-      inverseChainId[chainId[temperatureId]] = temperatureId;
+    // chainId[chnId] = temperatureId   and   inverseChain[temperatureId] = chnId
+    int inverseChainId[100]; // gives chain_id corresponding to temperature id, i.e. inverseChainId[temperatureId] = chainId
+    for(int chn=0; chn<numLocalChains; chn++){
+      inverseChainId[chainId[chn]] = chn;
     }
 
     /* print parameter values and trees (single-processor version) */
     for (temperatureId=0; temperatureId<numLocalChains; temperatureId++) // here temperatureId%numChains == 0 -> cold chain.
         {
-	    if( (temperatureId % chainParams.numChains) < chainParams.numChainsOut)
+          int iT = temperatureId % chainParams.numChains;
+	    if( iT < chainParams.numChainsOut)
             {
 	    chnId = inverseChainId[temperatureId];
 	    runId = temperatureId / chainParams.numChains;
-	    
             /* print parameter values */
             if (PrintStates (curGen, chnId) == ERROR)
                 return (ERROR);
+            if(iT == 0){
             fprintf (fpParm[runId], "%s", printString);
-            fflush (fpParm[runId]);
+fflush (fpParm[runId]);
+            }
+               MrBFlt lnisw =  (curLnL[chnId] + curLnPr[chnId])*(1.0 - InverseTemperature(temperatureId));
+               fprintf (fpTreeParm, "   %2d %2d %2d  %11.7g  ", runId, temperatureId, chnId, lnisw);
             free(printString);
-
+ 
             /* print trees */
             for (i=0; i<numPrintTreeParams; i++)
                 {
@@ -20268,8 +20283,10 @@ int PrintStatesToFiles (int curGen)
                         return (ERROR);
                     }
 
+                if(iT == 0){
                 fprintf (fpTree[runId][i], "%s", printString);
                 fflush (fpTree[runId][i]);
+                }
                 free(printString);
 
                 j = printTreeTopologyIndex[i];
@@ -20293,7 +20310,7 @@ int PrintStatesToFiles (int curGen)
                 }
             }
         } // loop over nchains*nruns chains
-#   else
+#   else // parallel case
     /* print parameter values and trees (parallel version) */
     
     /* Wait for all of the processors to get to this point before starting the printing. */
@@ -20316,7 +20333,7 @@ int PrintStatesToFiles (int curGen)
         /* Does this processor have the chain? */
         doesThisProcHaveId = NO;
         coldId = 0;
-        for (chn=0; chn<numLocalChains; chn++)
+        for (int chn=0; chn<numLocalChains; chn++)
             {
             if (chainId[chn] == id)
                 {
@@ -21287,12 +21304,19 @@ int PrintTree (int curGen, Param *treeParam, int chain, int showBrlens, MrBFlt c
         SafeSprintf (&tempStr, &tempStrSize, " = [&R] ");
     else if (tree->isRooted == YES && tree->isCalibrated == YES)
         SafeSprintf (&tempStr, &tempStrSize, " = [&R] [&clockrate=%s] ", MbPrintNum(clockRate));
-    else /* if (tree->isRooted == NO) */
+    else{ /* if (tree->isRooted == NO) */
         SafeSprintf (&tempStr, &tempStrSize, " = [&U] ");
+        fprintf (fpTreeParm, "  ");
+        WriteTopologyToFile(fpTreeParm, tree->root->left, tree->isRooted);
+        fprintf (fpTreeParm, "\n");
+        fflush(fpTreeParm);
+    }
     if (AddToPrintString (tempStr) == ERROR) return(ERROR);
     WriteNoEvtTreeToPrintString (tree->root->left, chain, treeParam, showBrlens, tree->isRooted);
     SafeSprintf (&tempStr, &tempStrSize, ";\n");
     if (AddToPrintString (tempStr) == ERROR) return(ERROR);
+
+    
 
     free (tempStr); 
     return (NO_ERROR);
@@ -22564,6 +22588,13 @@ int ReopenMBPrintFiles (void)
 
         }
 
+    // open .tp file
+    sprintf(fileName, "%s.tp", localFileName);
+    if ((fpTreeParm = OpenTextFileA (fileName)) == NULL)
+            {
+            return (ERROR);
+            }
+
     /* Take care of the mpi procs that do not have a mcmc file */
 #   if defined (MPI_ENABLED)
     if (proc_id != 0)
@@ -23115,6 +23146,22 @@ int ReusePreviousResults (int *numSamples, int steps)
                 return (ERROR);
             }
         }
+    printf("numSamples: %i \n", *numSamples);
+ sprintf (fileName, "%s%s.tp", workingDir, localFileName);
+ strcpy(bkupName,fileName);
+        strcat(bkupName,"~");
+        remove(bkupName);
+        if (rename(fileName,bkupName) != 0)
+            {
+            MrBayesPrint ("%s   Could not rename file %s\n", spacer, fileName);
+            return ERROR;
+            }
+if ((fpTreeParm = OpenNewMBPrintFile (fileName+strlen(workingDir))) == NULL)
+            return (ERROR);
+ else if (CopyResults(fpTreeParm,bkupName+strlen(workingDir),numPreviousGen) == ERROR) // not sure what the purpose of this is.
+            return (ERROR);
+
+
 
     /* Store old and prepare new .ss file */
     if (chainParams.isSS == YES)
@@ -23170,7 +23217,7 @@ int RunChain (RandLong *seed)
     int         run, samplesCountSS=0, stepIndexSS=0, numGenInStepSS=0, numGenOld, lastStepEndSS=0, numGenInStepBurninSS=0;
     MrBFlt      stepLengthSS=0, meanSS, varSS, *tempX;
     char        ckpFileName[220], bkupFileName[220];
-
+    
 #   if defined (BEAGLE_ENABLED)
     int         ResetScalersNeeded;  //set to YES if we need to reset node->scalerNode, used in old style rescaling;
 #       ifdef DEBUG_BEAGLE
@@ -23641,6 +23688,7 @@ int RunChain (RandLong *seed)
             /* Add tree samples to partition counters */
             if (chainParams.relativeBurnin == YES)
                 {
+                  printf("numPreviousGen: %i, i: %i, sampleFreq: %i numRuns: %i \n", numPreviousGen, i, chainParams.sampleFreq, chainParams.numRuns);
                 if (numPreviousGen/(i-1) != chainParams.sampleFreq)
                     {
                     MrBayesPrint ("%s   1. Use the same sampling frequency as in the previous run to use relative burnin.\n", spacer);
@@ -23797,7 +23845,6 @@ int RunChain (RandLong *seed)
 
     for (i=0; i<chainParams.numRuns; i++)
         maxLnL0[i] = -100000000.0;
-
     startingT=time(0);
     CPUTime = 0.0;
     previousCPUTime = clock();
@@ -23898,7 +23945,7 @@ int RunChain (RandLong *seed)
                 }
             MrBayesPrintf (fpSS, "\n");
             }
-        }
+        } // end  if (numPreviousGen == 0)
 
     for (n=numPreviousGen+1; n<=chainParams.numGen; n++) /* begin run chain */
         {
@@ -24021,7 +24068,6 @@ int RunChain (RandLong *seed)
                 {
                 lnLikelihoodRatio = lnLike - curLnL[chn];
                 lnPrior = curLnPr[chn] + lnPriorRatio;
-
 #   ifndef NDEBUG
                 /* We check various aspects of calculations in debug version of code */
                 if (IsTreeConsistent(theMove->parm, chn, state[chn]) != YES)
@@ -24072,8 +24118,9 @@ int RunChain (RandLong *seed)
 #   endif
 
                 /* heat */
-                lnLikelihoodRatio *= InverseTemperature (chainId[chn]);
-                lnPriorRatio      *= InverseTemperature (chainId[chn]);
+                MrBFlt inverseT = InverseTemperature (chainId[chn]);
+                lnLikelihoodRatio *= inverseT; 
+                lnPriorRatio      *= inverseT;
 
                 if (chainParams.isSS == YES)
                     lnLikelihoodRatio *= powerSS;
@@ -24814,11 +24861,12 @@ int RunChain (RandLong *seed)
                 {
                 mv = usedMoves[i];
                 if (mv->nBatches[j] < 1)
-                    MrBayesPrint ("%s          NA           NA       %s\n",
-                    spacer, mv->name);
+                    MrBayesPrint ("%s      %6i %6i     NA          NA        %s\n", 
+                                spacer, 0, 0, mv->name);
                 else
-                    MrBayesPrint ("%s       %6.1f %%     (%3.0f %%)     %s\n", spacer,
-                    100.0*mv->nTotAccepted[j]/(MrBFlt)(mv->nTotTried[j]),
+                    MrBayesPrint ("%s      %6i %6i  %6.1f %%     (%3.0f %%)     %s\n", spacer,
+                                  mv->nTotAccepted[j], mv->nTotTried[j],
+                                  100.0*mv->nTotAccepted[j]/(MrBFlt)(mv->nTotTried[j]),
                     100.0*mv->lastAcceptanceRate[j],
                     mv->name);
                 }
