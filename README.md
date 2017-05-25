@@ -7,8 +7,8 @@ Things to do:
 * Fix user-defined temperatures. It works (I think), but was confusing
 in that the user-supplied numbers were being used as INVERSE temperatures. Fixed.
 
-* Optionally output *run?.t, *run?.p files for HOT chains also. Now outputting hot-chain
-info, although not in separate file. Putting all temperature output in one run?.p file.
+* Output trees and parameters for HOT chains also. Now outputting hot-chain
+info, in separate file. 
 
 
 Feb 14 2015: Temperature function renamed to InverseTemperature, because
@@ -20,6 +20,6 @@ Feb 16 2015: Now allowing outputting of parameters, trees sampled, for hot chain
 All are going into one file. So, e.g. if nchains=3, the first line with a given gen, is for the cold chain,
 next line is for the next hotter chain, and the line after that is for the hottest chain.
 
-May 25 2017: Info on both trees (topologies only) and parameters output to .tp file. This file has all runs 
+May 25 2017: Info about trees (topologies only) and parameters is output to .tp file. This file has all runs 
 and multiple temperatures (the coolest nchainsout temperatures), in one file. Columns are 
-generation, ln(posterior prob.), tree length, alpha, pinvar, run number, T number, walker number, ln importance-sampling weight, topology.
+generation, ln(posterior prob.), tree length, alpha, pinvar, run number, T number, walker number, ln(importance-sampling weight), topology.
