@@ -190,6 +190,7 @@ int main (int argc, char *argv[])
     /* initialize seed using current time */
     GetTimeSeed ();
     
+    //   printf("%ld %ld %ld \n", globalSeed, runIDSeed, swapSeed);
     /* Initialize the variables of the program. */
     InitializeMrBayes ();
 

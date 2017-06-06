@@ -321,7 +321,7 @@ int       PrintAncStates_Gen (TreeNode *p, int division, int chain);
 int       PrintAncStates_NUC4 (TreeNode *p, int division, int chain);
 int       PrintAncStates_Std (TreeNode *p, int division, int chain);
 int       PrintCalTree (int curGen, Tree *tree);
-int       PrintCheckPoint (int gen);
+int       PrintCheckPoint (int gen, RandLong *seed);
 int       PrintMCMCDiagnosticsToFile (int curGen);
 #if defined (MPI_ENABLED)
 int       PrintMPISlaves (FILE *fp);
@@ -7419,6 +7419,7 @@ int DoMcmc (void)
        for every processor. This is taken care of when we initialize
        things in the program. If we are doing MPI, we also want to make
        certain that seed is different for every processor. */
+
 #   if defined (MPI_ENABLED)
     seed = globalSeed + (proc_id + 1);
     if (seed < 0)
@@ -7426,6 +7427,7 @@ int DoMcmc (void)
 #   else
     seed = globalSeed;
 #   endif
+    printf("      Seed was set to globalSeed. %12ld %12ld\n", seed, globalSeed);
 
     /* Get a unique identifier (stamp) for this run. This is used as
        an identifier for each mcmc analysis. It uses runIDSeed to initialize 
@@ -18222,7 +18224,7 @@ int PrintAncStates_Std (TreeNode *p, int division, int chain)
 |   PrintCheckPoint: Print checkpoint to file
 |
 ------------------------------------------------------------------------*/
-int PrintCheckPoint (int gen)
+int PrintCheckPoint (int gen, RandLong* seed)
 {
     int         i, j, k, k1, nErrors=0, run, chn, nValues, tempStrSize = TEMPSTRSIZE,
                 hasEvents, *intValue, id, oldPrecision;
@@ -18774,6 +18776,10 @@ if (proc_id == 0)
     
     /* end mrbayes block */
     MrBayesPrintf (fp, "end;\n\n");
+
+    RandomNumber(seed);
+    RandomNumber(&swapSeed);
+    printf("      globalSeed, seed, swapSeed:  %12ld  %12ld  %12ld\n", globalSeed, *seed, swapSeed);
 
     /* change precision back */
     precision = oldPrecision;
@@ -23924,7 +23930,7 @@ int RunChain (RandLong *seed)
             MrBayesPrintf (fpSS, "[LEGEND: The file contains statistics on the Steppingstone Sampling.]\n");
             MrBayesPrintf (fpSS, "[ID: %s]\n", stamp);
             MrBayesPrintf (fpSS, "[   Step                --  Index of the step ]\n");
-            MrBayesPrintf (fpSS, "[   Power               --  At each step we sample from the distribution with density (Likelihood^Power)*Prior ]\n");
+            MrBayesPrintf (fpSS, "[   Power               --  At each step we sample from the distribution with density (Likelihood{Power)*Prior ]\n");
             MrBayesPrintf (fpSS, "[   runX                --  Contribution to the marginal log likelihood of run X, i.e. marginal log likelihood for run X is the sum across all steps in column runX.   ]\n");
             if (chainParams.diagnStat == AVGSTDDEV)
                 MrBayesPrintf (fpSS, "[   aSplitX             --  Average standard deviation of split frequencies of tree X. -2.0 is printed if no diagnostics was requested. -1.0 is printed if there were no splits with frequency above minimum.]\n");
@@ -24569,7 +24575,7 @@ int RunChain (RandLong *seed)
                     {
                     /* print check-point file. Blocking for MPI */
                     ERROR_TEST2("Error before printing checkpoint",return(ERROR),);
-                    if (PrintCheckPoint (n) == ERROR)
+                    if (PrintCheckPoint (n, seed) == ERROR)
                         {
                         nErrors++;
                         }
@@ -24601,7 +24607,7 @@ int RunChain (RandLong *seed)
         if (chainParams.checkPoint == YES && (n % chainParams.checkFreq == 0))
             {
             ERROR_TEST2("Error before printing checkpoint",return(ERROR),);
-            if (PrintCheckPoint (n) == ERROR)
+            if (PrintCheckPoint (n, seed) == ERROR)
                 {
                 nErrors++;
                 }
