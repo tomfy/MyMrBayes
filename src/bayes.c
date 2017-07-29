@@ -34,6 +34,7 @@
  *
  */
 
+#include <stdio.h>
 #include "bayes.h"
 #include "command.h"
 #include "model.h"
@@ -103,7 +104,16 @@ CLFlt       logValue[400];
 
 int main (int argc, char *argv[])
 {
-    int i;
+  {  char *s;
+    int rv = asprintf(&s, "zz%s...%szz", "aaa", "ggg");
+    if(rv >= 0){
+      printf("%s  ", s);
+    }
+    free(s);
+    printf("XXX\n");
+  }
+
+  int i;
 
 #   if defined (MPI_ENABLED)
     int     ierror;

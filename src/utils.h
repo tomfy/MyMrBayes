@@ -187,6 +187,7 @@ void      WriteEventTreeToPrintString (TreeNode *p, int chain, Param *param, int
 void      WriteNoEvtTreeToPrintString (TreeNode *p, int chain, Param *param, int showBrlens, int isRooted);
 void      WriteEvolTree (TreeNode *p, int chain, Param *param);
 void      WriteTopologyToFile (FILE *fp, TreeNode *p, int isRooted);
+char*       OrderedTopologyString (TreeNode *p, int* index, int depth);
 
 /* math utility functions */
 #undef complex

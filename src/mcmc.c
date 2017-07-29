@@ -34,6 +34,8 @@
  *
  */
 
+
+#include <stdio.h>
 #include "bayes.h"
 #include "best.h"
 #include "command.h"
@@ -20708,9 +20710,9 @@ int PrintSwapInfo (void)
                         }
                     else
                         {
-                        SafeSprintf (&tempStr, &tempStrSize, "%1.2lf", (MrBFlt)swapInfo[n][i][j]/swapInfo[n][j][i]);
+                        SafeSprintf (&tempStr, &tempStrSize, "%1.4lf", (MrBFlt)swapInfo[n][i][j]/swapInfo[n][j][i]);
                         len = (int) strlen(tempStr);
-                        MrBayesPrint ("%*c%1.2lf ", maxLen-len+1, ' ', (MrBFlt)swapInfo[n][i][j]/swapInfo[n][j][i]);
+                        MrBayesPrint ("%*c%1.4lf ", maxLen-len+1, ' ', (MrBFlt)swapInfo[n][i][j]/swapInfo[n][j][i]);
                         }
                     }
                 else if (i == j)
@@ -21312,17 +21314,23 @@ int PrintTree (int curGen, Param *treeParam, int chain, int showBrlens, MrBFlt c
         SafeSprintf (&tempStr, &tempStrSize, " = [&R] [&clockrate=%s] ", MbPrintNum(clockRate));
     else{ /* if (tree->isRooted == NO) */
         SafeSprintf (&tempStr, &tempStrSize, " = [&U] ");
+
+        // output tree to .tp file:
         fprintf (fpTreeParm, "  ");
-        WriteTopologyToFile(fpTreeParm, tree->root->left, tree->isRooted);
+        WriteTopologyToFile(fpTreeParm, tree->root->left, 0);
+        fprintf (fpTreeParm, "  ");
+
+        int ix;
+        char* orderedTopoString = OrderedTopologyString(tree->root->left, &ix, 0);
+        fprintf (fpTreeParm, "  %s", orderedTopoString);
         fprintf (fpTreeParm, "\n");
         fflush(fpTreeParm);
+        //  exit(0);
     }
     if (AddToPrintString (tempStr) == ERROR) return(ERROR);
     WriteNoEvtTreeToPrintString (tree->root->left, chain, treeParam, showBrlens, tree->isRooted);
     SafeSprintf (&tempStr, &tempStrSize, ";\n");
     if (AddToPrintString (tempStr) == ERROR) return(ERROR);
-
-    
 
     free (tempStr); 
     return (NO_ERROR);
