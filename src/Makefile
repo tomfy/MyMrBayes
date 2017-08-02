@@ -3,8 +3,10 @@ RM        = rm
 CC        = gcc
 #CFLAGS    = -O3 -DNDEBUG -DUSECONFIG_H
 #CFLAGS     = -DUSECONFIG_H -std=c99
-CFLAGS	= -O3 -DNDEBUG -DUSECONFIG_H -std=c99  -I/usr/include/glib-2.0/ -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -L/usr/lib/x86_64-linux-gnu
-LDFLAGS   =  -lreadline -lm -lglib-2.0
+CFLAGS	= -O3 -DNDEBUG -DUSECONFIG_H -std=c99  -I/usr/include
+# -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -L/usr/lib/x86_64-linux-gnu
+LDFLAGS   =  -lreadline -lm 
+# -lglib-2.0
 INSTALL   = /usr/bin/install -c
 BINDIR    = /usr/local/bin
 

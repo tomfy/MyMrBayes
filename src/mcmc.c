@@ -17147,8 +17147,9 @@ int PickProposal (RandLong *seed, int chainIndex)
     MrBFlt      ran;
     int         i;
 
+
     ran = RandomNumber (seed);
-    
+   
     for (i=0; usedMoves[i]->cumProposalProb[chainIndex] <= ran; i++);
         
     return i;
@@ -21316,16 +21317,19 @@ int PrintTree (int curGen, Param *treeParam, int chain, int showBrlens, MrBFlt c
         SafeSprintf (&tempStr, &tempStrSize, " = [&U] ");
 
         // output tree to .tp file:
-        fprintf (fpTreeParm, "  ");
-        WriteTopologyToFile(fpTreeParm, tree->root->left, 0);
-        fprintf (fpTreeParm, "  ");
 
+        // unordered
+        //    fprintf (fpTreeParm, "  ");
+        //   WriteTopologyToFile(fpTreeParm, tree->root->left, 0);
+        //   fprintf (fpTreeParm, "  ");
+
+        // ordered
         int ix;
         char* orderedTopoString = OrderedTopologyString(tree->root->left, &ix, 0);
         fprintf (fpTreeParm, "  %s", orderedTopoString);
         fprintf (fpTreeParm, "\n");
         fflush(fpTreeParm);
-        //  exit(0);
+       
     }
     if (AddToPrintString (tempStr) == ERROR) return(ERROR);
     WriteNoEvtTreeToPrintString (tree->root->left, chain, treeParam, showBrlens, tree->isRooted);
@@ -24011,6 +24015,7 @@ int RunChain (RandLong *seed)
             /* decide which move to make */
             whichMove = PickProposal(seed, chainId[chn]);
             theMove = usedMoves[whichMove];
+
 #   if defined SHOW_MOVE
             printf ("Making move '%s'\n", theMove->name);
 #   endif
@@ -24052,6 +24057,7 @@ int RunChain (RandLong *seed)
                 }
 #   endif
             /* make move */
+
             if ((theMove->moveFxn)(theMove->parm, chn, seed, &lnPriorRatio, &lnProposalRatio, theMove->tuningParam[chainId[chn]]) == ERROR)
                 {
                 printf ("%s   Error in move %s\n", spacer, theMove->name);
@@ -24153,6 +24159,7 @@ int RunChain (RandLong *seed)
             i = chainId[chn];
             theMove->nTried[i]++;
             theMove->nTotTried[i]++;
+
             if (abortMove == NO && RandomNumber(seed) < r)
                 {
                 acceptMove = YES;
@@ -24874,7 +24881,7 @@ int RunChain (RandLong *seed)
             for (i=0; i<numUsedMoves; i++)
                 {
                 mv = usedMoves[i];
-                if (mv->nBatches[j] < 1)
+                if (mv->nTotTried[j] == 0)  // (0  &&  (mv->nBatches[j] < 1)) // if denom is zero ...
                     MrBayesPrint ("%s      %6i %6i     NA          NA        %s\n", 
                                 spacer, 0, 0, mv->name);
                 else
