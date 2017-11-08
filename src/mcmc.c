@@ -58,6 +58,8 @@ const char* const svnRevisionMcmcC = "$Rev: 983 $";   /* Revision keyword which 
 typedef void (*sighandler_t) (int);
 #endif
 
+#define NORMAL_HEATING  1 // 1: normal, 0: cold-tailed
+
 #define A                           0
 #define C                           1
 #define G                           2
@@ -94,6 +96,8 @@ typedef void (*sighandler_t) (int);
 #define MAXLOGTUNINGPARAM           100000      /* limit to ensure convergence for autotuning */
 #define SAMPLE_ALL_SS                           /* if defined makes ss sample every generation instead of every sample frequency */
 #define MIN_TEMPERATURE             (0.00001)
+#define PRINT_DOTT_FILES              0  /* controls whether to print trees (with branch lengths) to .t files */
+#define PRINT_DOTP_FILES             0  /* controls whether to print parameters to .p files */
 
 /* debugging compiler statements */
 #undef  DEBUG_SETUPTERMSTATE
@@ -1390,7 +1394,7 @@ int AttemptSwap (int swapA, int swapB, RandLong *seed)
 
             }
         }
-#   else
+#   else  // no MPI
     if (reweightingChars == YES)
         {
         /* use character reweighting */
@@ -1439,11 +1443,21 @@ int AttemptSwap (int swapA, int swapB, RandLong *seed)
             lnR = (inverseTemperatureB * (lnLikeStateAonDataB + lnPriorA) + inverseTemperatureA * (lnLikeStateBonDataA + lnPriorB)) 
 	      - (inverseTemperatureA * (lnLikeA + lnPriorA) + inverseTemperatureB * (lnLikeB + lnPriorB));
         }
-    else
+    else { // no reweightingChars
+      if(NORMAL_HEATING){ // normal heating
         lnR = (inverseTemperatureB * (lnLikeA + lnPriorA) + inverseTemperatureA * (lnLikeB + lnPriorB)) 
 	  - (inverseTemperatureA * (lnLikeA + lnPriorA) + inverseTemperatureB * (lnLikeB + lnPriorB));
+      }else{ // 'cold tailed' heating
+        double logF = log(chainParams.limitFactor);
+        double lnPPmax = chainParams.maxLogPP;
+        double ZA = lnLikeA + lnPriorA - lnPPmax; // lnPPmax is the log of max val of likelihood * prior
+        double ZB = lnLikeB + lnPriorB - lnPPmax;
+        lnR = ( fmin(ZA*(inverseTemperatureB - 1.0), logF) + fmin(ZB*(inverseTemperatureA - 1.0), logF) )
+          - ( fmin(ZB*(inverseTemperatureB - 1.0), logF) + fmin(ZA*(inverseTemperatureA - 1.0), logF) );
+      }
+    }
     if (lnR < -100.0)
-        r = 0.0;
+      r = 0.0;
     else if (lnR > 0.0)
         r =  1.0;
     else
@@ -1451,18 +1465,21 @@ int AttemptSwap (int swapA, int swapB, RandLong *seed)
 
     isSwapSuccessful = NO;
     if (RandomNumber(seed) < r)
-        {
+      { // Accept swap
         tempX = chainId[swapA];
         chainId[swapA] = chainId[swapB];
         chainId[swapB] = tempX;
 
         if (reweightingChars == YES)
-            {
+          {
             curLnL[swapA] = lnLikeStateAonDataB;
             curLnL[swapB] = lnLikeStateBonDataA;
-            }
+          }
         isSwapSuccessful = YES;
-        }
+        //    printf("Swap accepted\n");
+      }else{
+      //    printf("Swap rejected\n");
+    }
         
     chI = chainId[swapA];
     chJ = chainId[swapB];
@@ -1475,8 +1492,9 @@ int AttemptSwap (int swapA, int swapB, RandLong *seed)
     chI = chI % chainParams.numChains;
     chJ = chJ % chainParams.numChains;
     swapInfo[runId][chJ][chI]++;
-    if (isSwapSuccessful == YES)
+    if (isSwapSuccessful == YES){
         swapInfo[runId][chI][chJ]++;
+    }
 #   endif
     
     return (NO_ERROR);
@@ -8430,8 +8448,52 @@ int DoMcmcParm (char *parmName, char *tkn)
                 return (ERROR);
                 }
             }
-        /* set Nruns (numRuns) ****************************************************************/
-        else if (!strcmp(parmName, "Nruns"))
+        /* set limitFactor (limitFactor) ****************************************************************/
+        else if (!strcmp(parmName, "LimitFactor"))
+            {
+              if (expecting == Expecting(EQUALSIGN)){
+                expecting = Expecting(NUMBER);
+}
+            else if (expecting == Expecting(NUMBER))
+                {
+                sscanf (tkn, "%lf", &tempD);
+                if (tempD < 1)
+                    {
+                    MrBayesPrint ("%s   Limit factor should be > 1.\n", spacer);
+                    free(tempStr);
+                    return (ERROR);
+                    }
+                chainParams.limitFactor = tempD;
+                MrBayesPrint ("%s   Setting limitFactor to %f\n", spacer, chainParams.limitFactor);
+                expecting = Expecting(PARAMETER) | Expecting(SEMICOLON);
+                }
+            else
+                {
+                free(tempStr);
+                return (ERROR);
+                }
+            }
+        /* set maxLogPP */
+  else if (!strcmp(parmName, "MaxLogPP"))
+            {
+            if (expecting == Expecting(EQUALSIGN))
+                expecting = Expecting(DASH);
+            else if (expecting == Expecting(DASH))
+              expecting = Expecting(NUMBER);
+            else if (expecting == Expecting(NUMBER))
+                {
+                sscanf (tkn, "%lf", &tempD);         
+                chainParams.maxLogPP = -1.0*tempD;
+                MrBayesPrint ("%s   Setting maxLogPP to %f\n", spacer, chainParams.maxLogPP);
+                expecting = Expecting(PARAMETER) | Expecting(SEMICOLON);
+                }
+            else
+                {
+                free(tempStr);
+                return (ERROR);
+                }
+            }
+else if (!strcmp(parmName, "Nruns"))
             {
             if (expecting == Expecting(EQUALSIGN))
                 expecting = Expecting(NUMBER);
@@ -9163,7 +9225,7 @@ int DoMcmcParm (char *parmName, char *tkn)
         }
     free(tempStr);
     return (NO_ERROR);
-}
+} // end of DoMcmcParm
 
 
 int DoSs (void)
@@ -20259,10 +20321,12 @@ int PrintStatesToFiles (int curGen)
 	    runId = temperatureId / chainParams.numChains;
             /* print parameter values */
             if (PrintStates (curGen, chnId) == ERROR)
-                return (ERROR);
-            if(iT == 0){
-            fprintf (fpParm[runId], "%s", printString);
-fflush (fpParm[runId]);
+              return (ERROR);
+            if(PRINT_DOTP_FILES){
+              if(iT == 0){
+                fprintf (fpParm[runId], "%s", printString);
+                fflush (fpParm[runId]);
+              }
             }
                MrBFlt lnisw =  (curLnL[chnId] + curLnPr[chnId])*(1.0 - InverseTemperature(temperatureId));
                fprintf (fpTreeParm, "   %2d %2d %2d  %11.7g  ", runId, temperatureId, chnId, lnisw);
@@ -21277,64 +21341,71 @@ int PrintTree (int curGen, Param *treeParam, int chain, int showBrlens, MrBFlt c
                 }
             }
         }
-    
-    /* write the tree preamble */
-    if (SafeSprintf (&tempStr, &tempStrSize, "   tree gen.%d", curGen) == ERROR) return (ERROR);
-    if (AddToPrintString (tempStr) == ERROR) return(ERROR);
-    if (treeParam->paramType == P_BRLENS && treeParam->nSubParams > 0)
+    if(PRINT_DOTT_FILES){
+      /* write the tree preamble */
+      if (SafeSprintf (&tempStr, &tempStrSize, "   tree gen.%d", curGen) == ERROR) return (ERROR);
+      if (AddToPrintString (tempStr) == ERROR) return(ERROR);
+      if (treeParam->paramType == P_BRLENS && treeParam->nSubParams > 0)
         {
-        for (i=0; i<treeParam->nSubParams; i++)
+          for (i=0; i<treeParam->nSubParams; i++)
             {
-            subParm = treeParam->subParams[i];
-            if (subParm->paramType == P_CPPEVENTS)
+              subParm = treeParam->subParams[i];
+              if (subParm->paramType == P_CPPEVENTS)
                 {
-                if (SafeSprintf (&tempStr, &tempStrSize, " [&E %s]", subParm->name) == ERROR) return (ERROR);
-                if (AddToPrintString (tempStr) == ERROR) return(ERROR);
+                  if (SafeSprintf (&tempStr, &tempStrSize, " [&E %s]", subParm->name) == ERROR) return (ERROR);
+                  if (AddToPrintString (tempStr) == ERROR) return(ERROR);
                 }
-            //  if (subParm->paramType == P_MIXEDBRCHRATES)
-            //  {
-            //  id = *GetParamIntVals(subParm, chain, state[chain]);
-            //  if (SafeSprintf (&tempStr, &tempStrSize, " [&B %s %d]", subParm->name, id) == ERROR) return (ERROR);
-            //  }
-            else
+              //  if (subParm->paramType == P_MIXEDBRCHRATES)
+              //  {
+              //  id = *GetParamIntVals(subParm, chain, state[chain]);
+              //  if (SafeSprintf (&tempStr, &tempStrSize, " [&B %s %d]", subParm->name, id) == ERROR) return (ERROR);
+              //  }
+              else
                 if (SafeSprintf (&tempStr, &tempStrSize, " [&B %s]", subParm->name) == ERROR) return (ERROR);
-            if (AddToPrintString (tempStr) == ERROR) return(ERROR);
+              if (AddToPrintString (tempStr) == ERROR) return(ERROR);
             }
         }
-    subParm = modelSettings[treeParam->relParts[0]].popSize;
-    if (treeParam->paramType == P_SPECIESTREE && subParm->nValues > 1)
+      subParm = modelSettings[treeParam->relParts[0]].popSize;
+      if (treeParam->paramType == P_SPECIESTREE && subParm->nValues > 1)
         {
-        if (SafeSprintf (&tempStr, &tempStrSize, " [&N %s]", subParm->name) == ERROR) return (ERROR);
-        if (AddToPrintString (tempStr) == ERROR) return(ERROR);
+          if (SafeSprintf (&tempStr, &tempStrSize, " [&N %s]", subParm->name) == ERROR) return (ERROR);
+          if (AddToPrintString (tempStr) == ERROR) return(ERROR);
         }
 
-    /* write the tree in (extended) Newick format */
-    if (tree->isRooted == YES && tree->isCalibrated == NO)
+      /* write the tree in (extended) Newick format */
+  
+      if (tree->isRooted == YES && tree->isCalibrated == NO){
         SafeSprintf (&tempStr, &tempStrSize, " = [&R] ");
-    else if (tree->isRooted == YES && tree->isCalibrated == YES)
+      }else if (tree->isRooted == YES && tree->isCalibrated == YES){
         SafeSprintf (&tempStr, &tempStrSize, " = [&R] [&clockrate=%s] ", MbPrintNum(clockRate));
-    else{ /* if (tree->isRooted == NO) */
+      }else{ /* if (tree->isRooted == NO) */
         SafeSprintf (&tempStr, &tempStrSize, " = [&U] ");
+      }
 
-        // output tree to .tp file:
+      if (AddToPrintString (tempStr) == ERROR) return(ERROR);
+      // print the tree to print string (destined for .t file I think?)
+      //  if(PRINT_DOTT_FILE) 
+      WriteNoEvtTreeToPrintString (tree->root->left, chain, treeParam, showBrlens, tree->isRooted);
+      SafeSprintf (&tempStr, &tempStrSize, ";\n");
+      if (AddToPrintString (tempStr) == ERROR) return(ERROR);
 
-        // unordered
-        //    fprintf (fpTreeParm, "  ");
-        //   WriteTopologyToFile(fpTreeParm, tree->root->left, 0);
-        //   fprintf (fpTreeParm, "  ");
-
-        // ordered
-        int ix;
-        char* orderedTopoString = OrderedTopologyString(tree->root->left, &ix, 0);
-        fprintf (fpTreeParm, "  %s", orderedTopoString);
-        fprintf (fpTreeParm, "\n");
-        fflush(fpTreeParm);
-       
     }
-    if (AddToPrintString (tempStr) == ERROR) return(ERROR);
-    WriteNoEvtTreeToPrintString (tree->root->left, chain, treeParam, showBrlens, tree->isRooted);
-    SafeSprintf (&tempStr, &tempStrSize, ";\n");
-    if (AddToPrintString (tempStr) == ERROR) return(ERROR);
+
+    // output tree to .tp file:
+
+    // unordered
+    //    fprintf (fpTreeParm, "  ");
+    //   WriteTopologyToFile(fpTreeParm, tree->root->left, 0);
+    //   fprintf (fpTreeParm, "  ");
+
+    // ordered
+    int ix;
+    char* orderedTopoString = OrderedTopologyString(tree->root->left, &ix, 0);
+    fprintf (fpTreeParm, "  %s", orderedTopoString);
+    fprintf (fpTreeParm, "\n");
+    fflush(fpTreeParm);
+       
+   
 
     free (tempStr); 
     return (NO_ERROR);
@@ -24085,56 +24156,58 @@ int RunChain (RandLong *seed)
 
             /* determine whether we want to accept the move */
             if (abortMove == NO)
-                {
+              {
+                // curLnL[chn], curLnPr[chn] pertain to current states, not proposed state.
+                // lnLike, lnPrior pertain to proposed states.
                 lnLikelihoodRatio = lnLike - curLnL[chn];
                 lnPrior = curLnPr[chn] + lnPriorRatio;
 #   ifndef NDEBUG
                 /* We check various aspects of calculations in debug version of code */
                 if (IsTreeConsistent(theMove->parm, chn, state[chn]) != YES)
-                    {
+                  {
                     printf ("DEBUG ERROR: IsTreeConsistent failed after move '%s'\n", theMove->name);
                     return ERROR;
-                    }
+                  }
                 if (lnPriorRatio != lnPriorRatio)
-                    {
+                  {
                     printf ("DEBUG ERROR: Log prior ratio nan after move '%s'\n", theMove->name);
                     // printf ("Seed: %ld\n", oldSeed);  state[chn] ^= 1;  PrintCheckPoint (n);
                     return ERROR;
-                    }
+                  }
                 if (fabs((lnPrior-LogPrior(chn))/lnPrior) > 0.0001)
-                    {
+                  {
                     printf ("DEBUG ERROR: Log prior incorrect after move '%s' :%e :%e\n", theMove->name,lnPrior,LogPrior(chn));
                     // printf ("Seed: %ld\n", oldSeed);  state[chn] ^= 1;  PrintCheckPoint (n);
                     return ERROR;
-                    }
+                  }
                 if (lnProposalRatio != lnProposalRatio)
-                    {
+                  {
                     printf ("DEBUG ERROR: Log proposal ratio nan after move '%s'\n", theMove->name);
                     // printf ("Seed: %ld\n", oldSeed);  state[chn] ^= 1;  PrintCheckPoint (n);
                     return ERROR;
-                    }
+                  }
                 if (lnLike != lnLike)
-                    {
+                  {
                     printf ("DEBUG ERROR: Log likelihood nan after move '%s'\n", theMove->name);
                     // printf ("Seed: %ld\n", oldSeed);  state[chn] ^= 1;  PrintCheckPoint (n);
                     return ERROR;
-                    }
+                  }
 #       if defined (DEBUG_LNLIKELIHOOD) /* slow */
                 ResetFlips(chn); /* needed to return flags so they point to old state */
                 TouchEverything(chn);
                 if (fabs((lnLike-LogLike(chn))/lnLike) > 0.0001)
-                    {
+                  {
                     printf ("DEBUG ERROR: Log likelihood incorrect after move '%s'\n", theMove->name);
                     return ERROR;
-                    }
+                  }
 #       endif
                 if (theMove->parm->paramType == P_TOPOLOGY && GetTree (theMove->parm, chn, state[chn])->isClock == YES &&
                     IsClockSatisfied (GetTree (theMove->parm, chn, state[chn]),0.001) == NO)
-                    {
+                  {
                     printf ("%s   Branch lengths of the tree do not satisfy the requirements of a clock tree.\n", spacer);
                     ShowNodes(GetTree (theMove->parm, chn, state[chn])->root,0,YES);
                     return (ERROR);
-                    }
+                  }
 #   endif
 
                 /* heat */
@@ -24142,17 +24215,42 @@ int RunChain (RandLong *seed)
                 lnLikelihoodRatio *= inverseT; 
                 lnPriorRatio      *= inverseT;
 
+                
                 if (chainParams.isSS == YES)
-                    lnLikelihoodRatio *= powerSS;
-
-                /* calculate the acceptance probability */
-                if (lnLikelihoodRatio + lnPriorRatio + lnProposalRatio < -100.0)
+                  lnLikelihoodRatio *= powerSS;
+                if(NORMAL_HEATING){ // normal heating
+                  /* calculate the acceptance probability */
+                  // lnLikelihoodRatio and lnPriorRatio must have proposed state quantities in numerator; lnProposalRatio vice versa.
+                  if (lnLikelihoodRatio + lnPriorRatio + lnProposalRatio < -100.0)
                     r = 0.0;
-                else if (lnLikelihoodRatio + lnPriorRatio + lnProposalRatio > 0.0)
+                  else if (lnLikelihoodRatio + lnPriorRatio + lnProposalRatio > 0.0)
                     r = 1.0;
-                else
+                  else
                     r = exp(lnLikelihoodRatio + lnPriorRatio + lnProposalRatio);
+                }else{ // cold-tailed heating
+                  //  lnLikelihoodRatio = lnLike - curLnL[chn];
+                  //  lnPrior = curLnPr[chn] + lnPriorRatio;
+                  double logF = log(chainParams.limitFactor);
+                  double lnPPmax = chainParams.maxLogPP;
+                  double lnPPprop = lnLike + lnPrior;
+                  double lnPP = curLnL[chn] + curLnPr[chn];
+                  double lnPPprop_norm = lnPPprop - lnPPmax;
+                  double lnPP_norm = lnPP - lnPPmax;
+
+                  // 'heated'
+                  double lnPiT_prop = lnPPprop_norm + fmin((inverseT - 1.0)*lnPPprop_norm, logF);
+                  double lnPiT = lnPP_norm + fmin((inverseT - 1.0)*lnPP_norm, logF);
+                  double lnPa = lnPiT_prop - lnPiT + lnProposalRatio;
+                  if(lnPa < -100){
+                    r = 0.0;
+                  }else if(lnPa > 0.0){
+                    r = 1.0;
+                  }else{
+                    r = exp(lnPa);
+                  }
                 }
+              }
+
 
             /* decide to accept or reject the move */
             acceptMove = NO;
@@ -24217,22 +24315,24 @@ int RunChain (RandLong *seed)
 
         /* attempt swap(s) Non-blocking for MPI if no swap with external process. */
         if (chainParams.numChains > 1 && n % chainParams.swapFreq == 0)
-            {
+          {
             for (i = 0; i<chainParams.numRuns; i++)
-                {
+              {
                 for (j = 0; j<chainParams.numSwaps; j++)
+                  { // this pair of brackets was missing
                     GetSwappers (&swapA, &swapB, i);
-                if (AttemptSwap (swapA, swapB, seed) == ERROR)
-                    {
-                    MrBayesPrint ("%s   Unsuccessful swap of states\n", spacer);
+                    if (AttemptSwap (swapA, swapB, seed) == ERROR)
+                      {
+                        MrBayesPrint ("%s   Unsuccessful swap of states\n", spacer);
 #   if defined (MPI_ENABLED)
-                    nErrors++;
+                        nErrors++;
 #   else
-                    return ERROR;
+                        return ERROR;
 #   endif
-                    }
-                }
-            }
+                      }
+                  } // this pair of brackets was missing
+              }
+          }
 
         /* print information to screen. Non-blocking for MPI */
         if (n % chainParams.printFreq == 0)
@@ -25152,7 +25252,7 @@ int setFilePositions (int samplePos)
         } /* next tree */
     free (tempStr);
     return (NO_ERROR);
-}
+} 
 
 
 /* SetFileNames: Set file names */
@@ -27092,7 +27192,7 @@ int SetUsedMoves (void)
     int         i, j, moveIndex, numGlobalChains;
     MrBFlt      prob, sum, cumSum;
 
-    /* first count moves */
+    /* first count moves */ // count the moves that have > 0 rel prob. in at least one chain.
     numUsedMoves = 0;
     numGlobalChains = chainParams.numChains * chainParams.numRuns;
     for (i=0; i<numApplicableMoves; i++)
@@ -27160,6 +27260,7 @@ int SetUsedMoves (void)
         for (i=0; i<numUsedMoves; i++)
             {
             sum += usedMoves[i]->relProposalProb[j];
+            printf("chain: %d , move: %d , relpropprob: %7.5f \n", j, i, usedMoves[i]->relProposalProb[j]);
             }
         cumSum = 0.0;
         for (i=0; i<numUsedMoves; i++)

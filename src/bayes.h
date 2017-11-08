@@ -873,7 +873,7 @@ typedef struct cmdtyp
     int         specialCmd;
     CmdFxn      cmdFxnPtr;
     short       numParms;
-    short       parmList[50];
+    short       parmList[64];
     int         expect;
     char        *cmdDescription;
     int         cmdUse;
@@ -1083,6 +1083,8 @@ typedef struct chain
     MrBFlt      chainTemp;             /* chain temperature                             */
     int         userDefinedTemps;      /* should we use the users temperatures?         */
     MrBFlt      userTemps[MAX_CHAINS]; /* user-defined chain temperatures               */
+      MrBFlt      maxLogPP; /* approx. max value of log of L*Prior prob */
+      MrBFlt      limitFactor; /* max factor by which 'hot' pp is enhanced rel. to max pp */ 
     char        chainFileName[100];    /* chain file name for output                    */
     int         chainBurnIn;           /* chain burn in length                          */
     int         numStartPerts;         /* number of perturbations to starting tree      */

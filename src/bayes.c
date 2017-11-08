@@ -945,6 +945,8 @@ int ReinitializeMrBayes (void)
     chainParams.userDefinedTemps = NO;               /* should we use the users temperatures?         */
     for (i=0; i<MAX_CHAINS; i++)
         chainParams.userTemps[i] = 1.0;              /* user-defined chain temperatures               */
+    chainParams.limitFactor = 1000;                  /* enhancement of tail rel. to peak is limited to max of this amount.*/
+    chainParams.maxLogPP = 0;                        /* should be (approx.) max of log(L) + log(Pr)   */
     chainParams.swapAdjacentOnly = NO;               /* swap only adjacent temperatures               */
     chainParams.printMax = 8;                        /* maximum number of chains to print to screen   */
     chainParams.printAll = YES;                      /* whether to print heated chains                */
